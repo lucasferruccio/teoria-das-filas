@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Source+Sans+3:wght@400;600;700&display=swap');
+@import 'tailwindcss';
+@import 'katex/dist/katex.min.css';
+
+/* Paleta verde, pensada para projetor: fundo claro, texto bem escuro, verde saturado. */
+@theme {
+  --color-page: #fffdf8;
+  --color-card: #ffffff;
+  --color-soft: #eef5ec;
+  --color-sand: #f6f1e7;
+  --color-line: #d6ddd0;
+  --color-primary: #2f5d3a;
+  --color-primary-2: #4f7f5a;
+  --color-primary-dark: #1e3f27;
+  --color-ink: #1f2a1f;
+  --color-muted: #4a584c;
+  --color-warn: #c2410c;
+  --color-warn-bg: #fde7d3;
+  --color-warn-ink: #9a3412;
+  --color-approx-bg: #fef3c7;
+  --color-approx-ink: #854d0e;
+  --font-serif: 'Lora', Georgia, serif;
+  --font-sans: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html {
+  font-size: 17px;
+}
+@media (min-width: 1280px) {
+  html {
+    font-size: 18px;
+  }
+}
+body {
+  @apply bg-page text-ink font-sans antialiased;
+  line-height: 1.6;
+}
+h1,
+h2,
+h3 {
+  @apply font-serif text-primary-dark;
+  line-height: 1.25;
+}
+:focus-visible {
+  outline: 3px solid var(--color-primary-2);
+  outline-offset: 2px;
+}
+.katex {
+  font-size: 1.08em;
+}
+.katex-display {
+  margin: 0.4em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+@utility card {
+  @apply bg-card border border-line rounded-xl p-5;
+}
+@utility btn {
+  @apply inline-flex items-center gap-2 rounded-lg px-4 py-2 font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-primary text-white hover:bg-primary-dark;
+}
+@utility btn-ghost {
+  @apply btn border border-line bg-card text-primary-dark hover:bg-soft;
+}
+@utility input {
+  @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-ink focus:border-primary-2;
+}
+@utility label {
+  @apply text-sm font-semibold text-muted;
+}
+@utility badge {
+  @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-sm font-semibold;
+}
+@utility prose-tf {
+  & p {
+    @apply mb-3;
+  }
+  & ul {
+    @apply mb-3 list-disc pl-6;
+  }
+  & li {
+    @apply mb-1;
+  }
+}
+@utility table-tf {
+  @apply w-full border-collapse text-sm;
+  & th {
+    @apply bg-soft text-left font-semibold text-primary-dark px-3 py-2 border-b border-line whitespace-nowrap;
+  }
+  & td {
+    @apply px-3 py-1.5 border-b border-line tabular-nums;
+  }
+}
