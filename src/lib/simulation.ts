@@ -13,6 +13,8 @@ export interface SimSpec {
   /** População finita: cada um dos N clientes, quando fora do sistema, chega segundo `classes[0].arrival`. */
   N?: number
   priority?: boolean
+  /** Prioridade preemptiva com retomada: quem chega com prioridade maior interrompe o atendimento. */
+  preemptive?: boolean
 }
 
 export interface SimOptions {
@@ -36,11 +38,17 @@ export interface SimCustomer {
   nAtArrival: number
   queueAtArrival: number
   blocked: boolean
+  /** Quantas vezes o atendimento foi interrompido (prioridade preemptiva). */
+  preemptions: number
+  /** Duração total do atendimento sorteada. */
+  service: number
+  /** Quanto falta de atendimento, quando foi interrompido. */
+  remaining?: number
 }
 
 export interface SimEvent {
   t: number
-  type: 'chegada' | 'saída' | 'recusado'
+  type: 'chegada' | 'saída' | 'recusado' | 'interrupção'
   id: number
   arrivals: number
   served: number
@@ -177,11 +185,15 @@ export function simulate(spec: SimSpec, opt: SimOptions): SimResult {
       slots.push({ cust: null, end: Infinity })
       idx = slots.length - 1
     }
-    cust.start = t
-    cust.wait = t - cust.arrival
+    if (cust.remaining === undefined) {
+      cust.start = t
+      cust.wait = t - cust.arrival
+      cust.service = sample(spec.classes[cust.cls].service, u)
+    }
     cust.server = idx + 1
     slots[idx].cust = cust
-    slots[idx].end = t + sample(spec.classes[cust.cls].service, u)
+    slots[idx].end = t + (cust.remaining ?? cust.service)
+    cust.remaining = undefined
     busy++
   }
 
@@ -195,10 +207,36 @@ export function simulate(spec: SimSpec, opt: SimOptions): SimResult {
     } else queue.push(cust)
   }
 
+  /** Cliente interrompido volta para a fila à frente dos outros da mesma classe (chegou antes deles). */
+  const requeueFront = (cust: SimCustomer) => {
+    let i = qHead
+    while (i < queue.length && queue[i].cls < cust.cls) i++
+    queue.splice(i, 0, cust)
+  }
+
+  /** Prioridade preemptiva: tenta tirar do servidor o cliente de menor prioridade. */
+  const tryPreempt = (cust: SimCustomer): SimCustomer | null => {
+    let idx = -1
+    for (let i = 0; i < slots.length; i++) {
+      const c = slots[i].cust
+      if (c && c.cls > cust.cls && (idx < 0 || c.cls > slots[idx].cust!.cls)) idx = i
+    }
+    if (idx < 0) return null
+    const out = slots[idx].cust!
+    out.remaining = slots[idx].end - t
+    out.preemptions++
+    slots[idx].cust = null
+    slots[idx].end = Infinity
+    busy--
+    requeueFront(out)
+    startService(cust)
+    return out
+  }
+
   const arrive = (cls: number, source: number) => {
     const cust: SimCustomer = {
       id: customers.length + 1, cls, arrival: t, start: NaN, end: NaN, wait: NaN, system: NaN, server: 0,
-      nAtArrival: nSystem, queueAtArrival: qLen(), blocked: false,
+      nAtArrival: nSystem, queueAtArrival: qLen(), blocked: false, preemptions: 0, service: NaN,
     }
     customers.push(cust)
     arrivals++
@@ -211,9 +249,11 @@ export function simulate(spec: SimSpec, opt: SimOptions): SimResult {
     }
     if (finitePop) sourceOf.set(cust.id, source)
     nSystem++
+    let out: SimCustomer | null = null
     if (freeSlot()) startService(cust)
-    else enqueue(cust)
+    else if (!(spec.preemptive && (out = tryPreempt(cust)))) enqueue(cust)
     record('chegada', cust.id)
+    if (out) record('interrupção', out.id)
   }
 
   // Clientes que já estão esperando no instante 0.
@@ -247,6 +287,8 @@ export function simulate(spec: SimSpec, opt: SimOptions): SimResult {
       const cust = slot.cust!
       cust.end = t
       cust.system = t - cust.arrival
+      // Com interrupções, a espera inclui o tempo parado: espera = tempo no sistema − atendimento.
+      if (cust.preemptions > 0) cust.wait = cust.system - cust.service
       slot.cust = null
       slot.end = Infinity
       busy--

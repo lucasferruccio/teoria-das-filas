@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Versão em arquivo único (npm run build:single)
+dist-single
